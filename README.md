@@ -10,7 +10,7 @@ So I decided to build my own credit relative-value analytics framework given the
 
 This is intentionally a small-scale project. I am just going to API Google Sheets (for the size of the current bond universe, I believe that is sufficient). The focus is not on building complicated infrastructure yet, but on demonstrating the analytics that can sit on top of the data.
 
-The project is designed to use Python to:
+The ultimate goal of the project is designed to use Python/C++ (later) to:
 
 * Load and clean bond data
 * Calculate bond and spread analytics
@@ -19,6 +19,8 @@ The project is designed to use Python to:
 * Run simulations and scenario analysis
 * Track positions and profit & loss over time
 
-This repository is the **Amsterdam GTE release** of the project. I only want to have a working skeleton (raw bond data to actionable relative-value signals). Later on, I will gradually be adding more sophisticated data sources, models, portfolio construction, risk analytics, and trading simulations.
+## Release Version (Code names A-Z)
+This is the **Amsterdam GTE release**. I only want to have a working skeleton (UML diagram, raw bond data ingestion to basic actionable relative-value signals). Later on, I will gradually be adding more sophisticated data sources, execution models, portfolio construction, risk analytics, and Market Making features.
 
-More to come.
+### 1> UML Diagram, 2> Bond Math Used, 3> Data Flow Logic, 4> Current Model, 5> Future Road Map 
+![Amsterdam Release](releases/amsterdam_release.png)
