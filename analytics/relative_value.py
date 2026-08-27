@@ -2,21 +2,24 @@ import pandas as pd
 import numpy as np
 
 
+# --------------------------------------------------
+# Peer Median Relative Value
+# --------------------------------------------------
+
 def add_peer_relative_value(analytics_df, bonds_df):
     """
-    Add peer-based relative value metrics.
+    Add peer-based and maturity-adjusted relative value.
 
     Peer group:
         Rating + Sector
 
-    Positive RV residual:
-        Bond trades wider than peer median -> potentially CHEAP
+    Positive residual:
+        Wider than peers / fair curve -> potentially CHEAP
 
-    Negative RV residual:
-        Bond trades tighter than peer median -> potentially RICH
+    Negative residual:
+        Tighter than peers / fair curve -> potentially RICH
     """
 
-    # Add bond reference information
     df = analytics_df.merge(
         bonds_df[
             [
@@ -30,14 +33,14 @@ def add_peer_relative_value(analytics_df, bonds_df):
         how="left"
     )
 
-    # --------------------------------------------------
-    # Peer group statistics
-    # --------------------------------------------------
-
     group_cols = [
         "Rating",
         "Sector"
     ]
+
+    # --------------------------------------------------
+    # Existing peer statistics
+    # --------------------------------------------------
 
     df["Peer_Count"] = (
         df
@@ -63,18 +66,11 @@ def add_peer_relative_value(analytics_df, bonds_df):
         .transform("std")
     )
 
-    # --------------------------------------------------
-    # Relative value residual
-    # --------------------------------------------------
-
+    # Existing median-based RV
     df["RV_Residual_bps"] = (
         df["Spread_bps"]
         - df["Peer_Spread_Median_bps"]
     )
-
-    # --------------------------------------------------
-    # Z-score
-    # --------------------------------------------------
 
     df["RV_ZScore"] = (
         (
@@ -85,88 +81,190 @@ def add_peer_relative_value(analytics_df, bonds_df):
         df["Peer_Spread_Std_bps"]
     )
 
-    # Avoid divide-by-zero / missing std
     df["RV_ZScore"] = (
         df["RV_ZScore"]
         .replace([np.inf, -np.inf], np.nan)
     )
 
     # --------------------------------------------------
-    # Signal
+    # NEW: Maturity-adjusted relative value
     # --------------------------------------------------
 
-    def classify_signal(row):
+    df = add_maturity_adjusted_relative_value(
+        df,
+        group_cols=group_cols
+    )
 
-        residual = row["RV_Residual_bps"]
-        zscore = row["RV_ZScore"]
-
-        if pd.isna(residual):
-            return "N/A"
-
-        # Stronger signal
-        if (
-            residual >= 25
-            and (
-                pd.isna(zscore)
-                or zscore >= 1.0
-            )
-        ):
-            return "Strong Cheap"
-
-        if (
-            residual <= -25
-            and (
-                pd.isna(zscore)
-                or zscore <= -1.0
-            )
-        ):
-            return "Strong Rich"
-
-        # Normal signal
-        if residual >= 15:
-            return "Cheap"
-
-        if residual <= -15:
-            return "Rich"
-
-        return "Fair"
+    # --------------------------------------------------
+    # Signal based on maturity-adjusted RV
+    # --------------------------------------------------
 
     df["RV_Signal"] = (
-        df.apply(
-            classify_signal,
-            axis=1
-        )
+        df["Maturity_Adjusted_RV_bps"]
+        .apply(classify_signal)
     )
 
     return df
 
 
+# --------------------------------------------------
+# Credit Curve
+# --------------------------------------------------
+
+def add_maturity_adjusted_relative_value(
+    df,
+    group_cols=None
+):
+    """
+    Fit:
+
+        Spread = alpha + beta * Years_To_Maturity
+
+    separately for each Rating + Sector peer group.
+
+    Then:
+
+        Maturity_Adjusted_RV
+            = Actual Spread - Fair Spread
+    """
+
+    if group_cols is None:
+        group_cols = [
+            "Rating",
+            "Sector"
+        ]
+
+    result_groups = []
+
+    for _, group in df.groupby(group_cols):
+
+        group = group.copy()
+
+        valid = group[
+            [
+                "Years_To_Maturity",
+                "Spread_bps"
+            ]
+        ].dropna()
+
+        # Need at least 2 different maturities
+        if (
+            len(valid) < 2
+            or valid["Years_To_Maturity"].nunique() < 2
+        ):
+            group["Curve_Slope"] = np.nan
+            group["Curve_Intercept"] = np.nan
+            group["Fair_Spread_bps"] = (
+                group["Peer_Spread_Median_bps"]
+            )
+
+        else:
+
+            # Linear regression:
+            # Spread = alpha + beta * maturity
+
+            slope, intercept = np.polyfit(
+                valid["Years_To_Maturity"],
+                valid["Spread_bps"],
+                1
+            )
+
+            group["Curve_Slope"] = slope
+            group["Curve_Intercept"] = intercept
+
+            group["Fair_Spread_bps"] = (
+                intercept
+                + slope
+                * group["Years_To_Maturity"]
+            )
+
+        # Actual - Fair
+        group["Maturity_Adjusted_RV_bps"] = (
+            group["Spread_bps"]
+            - group["Fair_Spread_bps"]
+        )
+
+        # Residual dispersion
+        residual_std = (
+            group["Maturity_Adjusted_RV_bps"]
+            .std()
+        )
+
+        if (
+            pd.isna(residual_std)
+            or residual_std == 0
+        ):
+            group["Maturity_Adjusted_ZScore"] = np.nan
+
+        else:
+            group["Maturity_Adjusted_ZScore"] = (
+                group["Maturity_Adjusted_RV_bps"]
+                / residual_std
+            )
+
+        result_groups.append(group)
+
+    return pd.concat(
+        result_groups,
+        ignore_index=True
+    )
+
+
+# --------------------------------------------------
+# Signal Classification
+# --------------------------------------------------
+
+def classify_signal(residual):
+    """
+    Classify maturity-adjusted residual.
+    """
+
+    if pd.isna(residual):
+        return "N/A"
+
+    if residual >= 20:
+        return "Strong Cheap"
+
+    if residual >= 10:
+        return "Cheap"
+
+    if residual <= -20:
+        return "Strong Rich"
+
+    if residual <= -10:
+        return "Rich"
+
+    return "Fair"
+
+
+# --------------------------------------------------
+# Opportunity Ranking
+# --------------------------------------------------
+
 def rank_opportunities(df):
     """
-    Rank bonds by absolute relative-value dislocation.
-
-    Larger absolute residual means a larger deviation
-    from the peer median.
+    Rank by absolute maturity-adjusted RV.
     """
 
     ranked = df.copy()
 
     ranked["RV_Absolute_bps"] = (
-        ranked["RV_Residual_bps"].abs()
+        ranked[
+            "Maturity_Adjusted_RV_bps"
+        ].abs()
     )
 
-    ranked = ranked.sort_values(
+    return ranked.sort_values(
         "RV_Absolute_bps",
         ascending=False
     )
 
-    return ranked
 
+# --------------------------------------------------
+# Cheap Bonds
+# --------------------------------------------------
 
 def get_cheap_bonds(df):
-    """
-    Return bonds trading wider than peers.
-    """
 
     return (
         df[
@@ -178,16 +276,17 @@ def get_cheap_bonds(df):
             )
         ]
         .sort_values(
-            "RV_Residual_bps",
+            "Maturity_Adjusted_RV_bps",
             ascending=False
         )
     )
 
 
+# --------------------------------------------------
+# Rich Bonds
+# --------------------------------------------------
+
 def get_rich_bonds(df):
-    """
-    Return bonds trading tighter than peers.
-    """
 
     return (
         df[
@@ -199,7 +298,7 @@ def get_rich_bonds(df):
             )
         ]
         .sort_values(
-            "RV_Residual_bps",
+            "Maturity_Adjusted_RV_bps",
             ascending=True
         )
     )

@@ -100,7 +100,7 @@ def main():
 
     ranked = rank_opportunities(rv)
 
-    print("\nRELATIVE VALUE")
+    print("\nMATURITY-ADJUSTED RELATIVE VALUE")
 
     print(
         ranked[
@@ -108,10 +108,13 @@ def main():
                 "Issuer",
                 "Rating",
                 "Sector",
+                "Years_To_Maturity",
                 "Spread_bps",
                 "Peer_Spread_Median_bps",
                 "RV_Residual_bps",
-                "RV_ZScore",
+                "Fair_Spread_bps",
+                "Maturity_Adjusted_RV_bps",
+                "Maturity_Adjusted_ZScore",
                 "RV_Signal"
             ]
         ]
