@@ -25,5 +25,8 @@ This is the **Amsterdam GTE release**. I only want to have a working skeleton (U
 ### 1> UML Diagram, 2> Bond Math Used, 3> Data Flow Logic, 4> Current Model, 5> Future Road Map 
 ![Amsterdam Release](releases/amsterdam_release.png)
 
+### Pipeline
+Google Sheets -> Data loaders -> Bond Analytics -> Peer Relative Value -> Z-score -> Cheap / Fair / Rich -> Opportunity Ranking
+
 ### Patches
 - Amsterdam patch: Fix load functions for all 3 files in the data folder. Added Argument --command (data, analytics, rv) to run parts of the program. No need to alaways run the whole thing.
