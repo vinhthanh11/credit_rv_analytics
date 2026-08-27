@@ -3,8 +3,8 @@ import pandas as pd
 from ggsheet import get_records
 
 
-def load_prices():
-    records = get_records("Daily_Prices")
+def load_prices(sheet_name):
+    records = get_records(sheet_name)
 
     df = pd.DataFrame(records)
 

@@ -3,8 +3,8 @@ import pandas as pd
 from ggsheet import get_records
 
 
-def load_bonds():
-    records = get_records("Bonds")
+def load_bonds(sheet_name):
+    records = get_records(sheet_name)
 
     df = pd.DataFrame(records)
 

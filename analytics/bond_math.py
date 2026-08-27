@@ -177,17 +177,8 @@ def calculate_dv01(
         0.0001
     )
 
-def build_bond_analytics(
-    bonds,
-    prices,
-    treasury
-):
-    latest_prices = (
-        prices
-        .sort_values("Date")
-        .groupby("CUSIP")
-        .tail(1)
-    )
+def build_bond_analytics(bonds, prices, treasury):
+    latest_prices = (prices.sort_values("Date").groupby("CUSIP").tail(1))
 
     df = bonds.merge(
         latest_prices,
@@ -195,16 +186,11 @@ def build_bond_analytics(
         how="left"
     )
 
-    latest_treasury = (
-        treasury
-        .sort_values("Date")
-        .iloc[-1]
-    )
+    latest_treasury = (treasury.sort_values("Date").iloc[-1])
 
     results = []
 
     for _, row in df.iterrows():
-
         years = years_to_maturity(
             row["Maturity"],
             row["Date"]

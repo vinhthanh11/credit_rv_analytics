@@ -1,3 +1,6 @@
+import argparse
+
+from ggsheet import get_records
 from data.bonds import load_bonds
 from data.prices import load_prices
 from data.treasury import load_treasury
@@ -14,9 +17,24 @@ from analytics.relative_value import (
 
 def main():
 
-    bonds = load_bonds()
-    prices = load_prices()
-    treasury = load_treasury()
+    parser = argparse.ArgumentParser(
+        description="Credit Data Check"
+    )
+
+    parser.add_argument("--command", choices=["data"])
+    args = parser.parse_args()
+
+    if args.command == "data":
+        # Load data from Bonds, Daily Prices, Treasury Sheets with appropriate format
+        print(load_bonds("Bonds").head(5))
+        print(load_prices("Daily_Prices").head(5))
+        print(load_treasury("Treasury").head(5))
+        return
+
+
+    bonds = load_bonds("Bonds")
+    prices = load_prices("Daily_Prices")
+    treasury = load_treasury("Treasury")
 
     # ------------------------------------------
     # Bond analytics
