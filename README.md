@@ -26,4 +26,4 @@ This is the **Amsterdam GTE release**. I only want to have a working skeleton (U
 ![Amsterdam Release](releases/amsterdam_release.png)
 
 ### Patches
-- Amsterdam patch 1: Fix load functions for all 3 files in the data folder. Added Argument --command data to run load functions only for data checking. No need to alaways run the whole thing.
+- Amsterdam patch: Fix load functions for all 3 files in the data folder. Added Argument --command (data, analytics, rv) to run parts of the program. No need to alaways run the whole thing.
